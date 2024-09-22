@@ -1,7 +1,8 @@
-#include <fmt/core.h>
+#include <iostream>
+#include "tira/parser.h"
 
 int main()
 {
-    fmt::print("Hello World!\n");
+    std::cout << "Hello World";
     return 0;
 }

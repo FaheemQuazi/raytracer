@@ -1,0 +1,3 @@
+[submodule "deps/tira"]
+	path = deps/tira
+	url = https://github.com/STIM-Lab/tiralib.git

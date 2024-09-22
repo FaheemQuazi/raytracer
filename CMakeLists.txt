@@ -1,9 +1,18 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(HelloWorld)
+project(raytracer)
 
-find_package(fmt CONFIG REQUIRED)
+# VCPKG Deps
+find_package(glm CONFIG REQUIRED)
 
-add_executable(HelloWorld main.cpp)
+# Include TIRA from the submodule
+include(${CMAKE_SOURCE_DIR}/deps/tira/cmake/FindTIRA.cmake)
+add_library(TIRA INTERFACE)
+target_sources(TIRA PUBLIC
+    FILE_SET HEADERS
+        BASE_DIRS ${CMAKE_SOURCE_DIR}/deps/tira
+)
 
-target_link_libraries(HelloWorld PRIVATE fmt::fmt)
+# Configure Executable
+add_executable(raytracer main.cpp)
+target_link_libraries(raytracer PRIVATE glm::glm TIRA)
