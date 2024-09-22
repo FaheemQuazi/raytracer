@@ -1,0 +1,22 @@
+// For format details, see https://aka.ms/vscode-remote/devcontainer.json or this file's README at:
+// https://github.com/microsoft/vscode-dev-containers/tree/v0.128.0/containers/cpp
+{
+	"name": "cpp-cuda-dev",
+	"dockerFile": "Dockerfile",
+	"runArgs": [
+        "--gpus", "all"
+	],
+    "features": {
+        "ghcr.io/msclock/features/vcpkg": true
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools", // C++
+                "ms-vscode.cmake-tools", // CMake
+                "ms-vscode.cpptools-extension-pack",
+                "twxs.cmake"
+            ]
+        }
+    }
+}
