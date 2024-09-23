@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(raytracer)
+project(raytracer LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 20)
 
 # VCPKG Deps
 find_package(glm CONFIG REQUIRED)
@@ -13,6 +14,11 @@ target_sources(TIRA PUBLIC
         BASE_DIRS ${CMAKE_SOURCE_DIR}/deps/tira
 )
 
+# Add Assets
+add_custom_target(copy-runtime-files ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/assets ${CMAKE_BINARY_DIR}/assets)
+
 # Configure Executable
 add_executable(raytracer main.cpp)
+target_include_directories(raytracer PUBLIC ${CMAKE_SOURCE_DIR}/inc)
 target_link_libraries(raytracer PRIVATE glm::glm TIRA)
