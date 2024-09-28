@@ -9,7 +9,9 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/debug/raytracer",
-            "args": [],
+            "args": [
+                "${workspaceFolder}/assets/basic.scene"
+            ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build/debug/",
             "environment": [],

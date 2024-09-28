@@ -6,24 +6,32 @@
 #include "fqrt/tasks.hpp"
 
  // load scene
-#define SCENE_FILE "assets/basic.scene"
-tira::parser scene(SCENE_FILE);
+#ifndef SCENE_FILE
+#define SCENE_FILE argv[1]
+#endif
 
-// scene objects
-tira::camera cam;
-glm::vec3 cam_bg;
-fqrt::objects::sphere *spheres;
-fqrt::objects::light *lights;
-
-// output image
-float img_W = scene.get<float>("resolution", 0);
-float img_H = scene.get<float>("resolution", 1);
-float img_C = 3;
-tira::image<unsigned char> img(img_W, img_H, img_C);
-
-int main()
+int main(int argc, char* argv[])
 {
     std::cout << "Hello FQRT\n";
+    if (argc < 2) {
+        std::cerr << "No scene file specified!\n";
+        return 1;
+    }
+    std::cout << "Scene File: " << SCENE_FILE << "\n";
+
+    tira::parser scene(SCENE_FILE);
+
+    // scene objects
+    tira::camera cam;
+    glm::vec3 cam_bg;
+    fqrt::objects::sphere *spheres;
+    fqrt::objects::light *lights;
+
+    // output image
+    float img_W = scene.get<float>("resolution", 0);
+    float img_H = scene.get<float>("resolution", 1);
+    float img_C = 3;
+    tira::image<unsigned char> img(img_W, img_H, img_C);
 
     // configure camera
     cam.position(scene.get<float>("camera_position", 0), scene.get<float>("camera_position", 1), scene.get<float>("camera_position", 2));
@@ -68,8 +76,7 @@ int main()
     }
     
     // print what we've loaded so far
-    std::cout << "Loaded v3:\n" \
-        << " - Scene: " << SCENE_FILE << std::endl \
+    std::cout << "Loaded:\n" \
         << " - Camera: " << cam \
         << " - Render Image: " << img_W << " X " << img_H << std::endl\
         << " - Number of Spheres: " << sphereCount << std::endl \
@@ -87,40 +94,53 @@ int main()
             float ipX = (x - (img_W / 2.0)) / img_W; /* [-0.5, 0.5]*/
             float ipY = (y - (img_H / 2.0)) / img_H; /* [-0.5, 0.5]*/
             glm::vec3 cR = cam.ray(ipX, ipY);
-            for (int sph = 0; sph < sphereCount; sph++) { // loop each sphere
-                fqrt::tasks::hitTestResult hrt;
-                fqrt::tasks::traceIntersectSphere(cam.position(), cR, spheres[sph], &hrt);
-                if (hrt.valid) {
-                    // hit a sphere, lets use it for the color calculation
-                    glm::vec3 pxCol(0);
-                    for (int lg = 0; lg < lightCount; lg++) { // loop each light
-                        bool lightObstruct = false;
-                        for (int b = 0; b < sphereCount; b++) {
-                            fqrt::tasks::hitTestResult hrt_l;
-                            fqrt::tasks::traceIntersectSphere(hrt.pos, 
-                                fqrt::tasks::buildDirRay(hrt.pos, lights[lg].pos),
-                                spheres[b].pos, spheres[b].r, &hrt_l);
-                            if (hrt_l.valid) { // we are obstructed if this hits
-                                lightObstruct = true;
-                                break;
-                            }
-                        }
-                        if (!lightObstruct) { // if not obstructed, incorporate this light
-                            float intensity = fqrt::tasks::calcLightingAtPos(lights[lg].pos, 
-                                hrt.pos, hrt.nor);
-                            pxCol = pxCol + intensity * lights[lg].color * spheres[sph].color;
+            fqrt::tasks::hitTestResult hrt = {
+                .valid = false
+            };
+            int sph = -1;
+            for (int csph = 0; csph < sphereCount; csph++) { // loop each sphere
+                fqrt::tasks::hitTestResult chrt;
+                fqrt::tasks::traceIntersectSphere(cam.position(), cR, spheres[csph], &chrt);
+                if (chrt.valid) {
+                    if (hrt.valid && hrt.t > chrt.t) { // found closer sphere
+                        sph = csph;
+                        hrt = chrt;
+                    } else if (!hrt.valid) { // haven't found any sphere
+                        sph = csph;
+                        hrt = chrt;
+                    }
+                }
+            }
+            if (hrt.valid) { // we got the closest sphere
+                // hit a sphere, lets use it for the color calculation
+                glm::vec3 pxCol(0);
+                for (int lg = 0; lg < lightCount; lg++) { // loop each light
+                    bool lightObstruct = false;
+                    for (int b = 0; b < sphereCount; b++) {
+                        fqrt::tasks::hitTestResult hrt_l;
+                        fqrt::tasks::traceIntersectSphere(hrt.pos, 
+                            fqrt::tasks::buildDirRay(hrt.pos, lights[lg].pos),
+                            spheres[b].pos, spheres[b].r, &hrt_l);
+                        if (hrt_l.valid) { // we are obstructed if this hits
+                            lightObstruct = true;
+                            break;
                         }
                     }
-                    img(x, y, 0) = (pxCol.r) * 255;
-                    img(x, y, 1) = (pxCol.g) * 255;
-                    img(x, y, 2) = (pxCol.b) * 255;
-                    break;
+                    if (!lightObstruct) { // if not obstructed, incorporate this light
+                        float intensity = fqrt::tasks::calcLightingAtPos(lights[lg].pos, 
+                            hrt.pos, hrt.nor);
+                        pxCol = pxCol + intensity * lights[lg].color * spheres[sph].color;
+                    }
                 }
+                img(x, y, 0) = (pxCol.r) * 255;
+                img(x, y, 1) = (pxCol.g) * 255;
+                img(x, y, 2) = (pxCol.b) * 255;
             }
         }
     }
     // save image
     img.save("out.bmp");
+    std::cout << "Rendered to out.bmp";
 
     return 0;
 }

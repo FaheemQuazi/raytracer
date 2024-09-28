@@ -17,10 +17,6 @@ target_sources(TIRA PUBLIC
         BASE_DIRS ${CMAKE_SOURCE_DIR}/deps/tira
 )
 
-# Add Assets
-add_custom_target(copy-runtime-files ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/assets ${CMAKE_BINARY_DIR}/assets)
-
 # Configure Executable
 add_executable(raytracer main.cpp)
 target_include_directories(raytracer PUBLIC ${CMAKE_SOURCE_DIR}/inc)
