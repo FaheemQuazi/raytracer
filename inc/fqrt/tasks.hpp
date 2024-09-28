@@ -12,6 +12,7 @@ namespace fqrt {
             bool valid;
             glm::vec3 pos;
             glm::vec3 nor;
+            float t;
         } hitTestResult;
         /**
          * build direction ray between two points
@@ -45,6 +46,7 @@ namespace fqrt {
 
             // hit data output
             glm::vec3 oPos = p + (th * d);
+            out->t = th;
             out->pos = oPos;
             out->nor = glm::normalize(oPos - s);
             out->valid = true;

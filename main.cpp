@@ -93,28 +93,27 @@ int main()
                 if (hrt.valid) {
                     // hit a sphere, lets use it for the color calculation
                     glm::vec3 pxCol(0);
-                    // for (int lg = 0; lg < lightCount; lg++) { // loop each light
-                    //     bool lightObstruct = false;
-                    //     for (int b = 0; b < sphereCount; b++) {
-                    //         if (b != sph) { // skip ourself
-                    //             fqrt::tasks::hitTestResult hrt_l;
-                    //             fqrt::tasks::traceIntersectSphere(hrt.pos, fqrt::tasks::buildDirRay(hrt.pos, lights[lg].pos),
-                    //                 spheres[b].pos, spheres[b].r, &hrt_l);
-                    //             if (!hrt_l.valid) { // we are obstructed if this hits
-                    //                 lightObstruct = true;
-                    //                 break;
-                    //             }
-                    //         }
-                    //     }
-                    //     if (!lightObstruct) { // if not obstructed, incorporate this light
-                    //         float intensity = fqrt::tasks::calcLightingAtPos(lights[lg].pos, 
-                    //             hrt.pos, hrt.nor);
-                    //         pxCol = pxCol + intensity * lights[lg].color;
-                    //     }
-                    // }
-                    img(x, y, 0) = spheres[sph].color.r * 255;
-                    img(x, y, 1) = spheres[sph].color.g * 255;
-                    img(x, y, 2) = spheres[sph].color.b * 255;
+                    for (int lg = 0; lg < lightCount; lg++) { // loop each light
+                        bool lightObstruct = false;
+                        for (int b = 0; b < sphereCount; b++) {
+                            fqrt::tasks::hitTestResult hrt_l;
+                            fqrt::tasks::traceIntersectSphere(hrt.pos, 
+                                fqrt::tasks::buildDirRay(hrt.pos, lights[lg].pos),
+                                spheres[b].pos, spheres[b].r, &hrt_l);
+                            if (hrt_l.valid) { // we are obstructed if this hits
+                                lightObstruct = true;
+                                break;
+                            }
+                        }
+                        if (!lightObstruct) { // if not obstructed, incorporate this light
+                            float intensity = fqrt::tasks::calcLightingAtPos(lights[lg].pos, 
+                                hrt.pos, hrt.nor);
+                            pxCol = pxCol + intensity * lights[lg].color * spheres[sph].color;
+                        }
+                    }
+                    img(x, y, 0) = (pxCol.r) * 255;
+                    img(x, y, 1) = (pxCol.g) * 255;
+                    img(x, y, 2) = (pxCol.b) * 255;
                     break;
                 }
             }
