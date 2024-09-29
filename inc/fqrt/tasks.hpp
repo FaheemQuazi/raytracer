@@ -61,6 +61,21 @@ namespace fqrt {
         void traceIntersectSphere(glm::vec3 p, glm::vec3 d, fqrt::objects::sphere S, hitTestResult* out) {
             traceIntersectSphere(p, d, S.pos, S.r, out);
         }
+        
+        void traceIntersectPlane(glm::vec3 p, glm::vec3 d, fqrt::objects::plane P, hitTestResult* out) {
+            out->valid = false;
+
+            float ndd = glm::dot(P.norm, d);
+            if (ndd == 0) return; // undefined (parallel)
+            glm::vec3 v_cp = P.pos - p;
+            float th = glm::dot(v_cp, P.norm) / ndd;
+
+            out->pos = p + (th * d);
+            out->nor = P.norm;
+            out->t = th;
+            out->valid = true;
+        }
+
         /**
          * calc Illumination value for basic object
          *   l: light position

@@ -32,8 +32,9 @@ int main(int argc, char* argv[])
     // scene objects
     tira::camera cam;
     glm::vec3 cam_bg;
-    fqrt::objects::sphere *spheres;
-    fqrt::objects::light *lights;
+    fqrt::objects::sphere* spheres;
+    fqrt::objects::plane* planes;
+    fqrt::objects::light* lights;
 
     // output image
     float img_W = scene.get<float>("resolution", 0);
@@ -62,8 +63,26 @@ int main(int argc, char* argv[])
             spheres[i].color.b = scene.get<float>("sphere", i, 6);
         }
     } else {
-        printf("Error: No Spheres in scene!\n");
-        return 1;
+        printf("Warning: No Spheres in scene!\n");
+    }
+    
+    // allocate planes
+    int planeCount = scene.count("plane");
+    if (planeCount > 0) {
+        planes = (fqrt::objects::plane *)malloc(sizeof(fqrt::objects::plane) * planeCount);
+        for (int i = 0; i < planeCount; i++) {
+            planes[i].pos.x = scene.get<float>("plane", i, 0);
+            planes[i].pos.y = scene.get<float>("plane", i, 1);
+            planes[i].pos.z = scene.get<float>("plane", i, 2);
+            planes[i].norm.x = scene.get<float>("plane", i, 3);
+            planes[i].norm.y = scene.get<float>("plane", i, 4);
+            planes[i].norm.z = scene.get<float>("plane", i, 5);
+            planes[i].color.r = scene.get<float>("plane", i, 6);
+            planes[i].color.g = scene.get<float>("plane", i, 7);
+            planes[i].color.b = scene.get<float>("plane", i, 8);
+        }
+    } else {
+        printf("Warning: No planes in scene!\n");
     }
 
     // allocate lights
@@ -89,6 +108,7 @@ int main(int argc, char* argv[])
         << " - Camera: " << cam \
         << " - Render Image: " << img_W << " X " << img_H << std::endl\
         << " - Number of Spheres: " << sphereCount << std::endl \
+        << " - Number of Planes: " << planeCount << std::endl \
         << " - Number of Lights: " << lightCount << std::endl;
 
     // Time tracking stuff
@@ -118,26 +138,40 @@ int main(int argc, char* argv[])
             fqrt::tasks::hitTestResult hrt = {
                 .valid = false
             };
-            int sph = -1;
+            glm::vec3 cHitObjCol(0);
             for (int csph = 0; csph < sphereCount; csph++) { // loop each sphere
                 fqrt::tasks::hitTestResult chrt;
                 fqrt::tasks::traceIntersectSphere(cam.position(), cR, spheres[csph], &chrt);
                 if (chrt.valid) {
                     if (hrt.valid && hrt.t > chrt.t) { // found closer sphere
-                        sph = csph;
+                        cHitObjCol = spheres[csph].color;
                         hrt = chrt;
                     } else if (!hrt.valid) { // haven't found any sphere
-                        sph = csph;
+                        cHitObjCol = spheres[csph].color;
                         hrt = chrt;
+                    }
+                }
+            }
+            if (!hrt.valid) { // if we aren't valid already
+                for (int cpl = 0; cpl < planeCount; cpl++) { // loop each plane
+                    fqrt::tasks::hitTestResult chrt;
+                    fqrt::tasks::traceIntersectPlane(cam.position(), cR, planes[cpl], &chrt);
+                    if (chrt.valid) {
+                        if (hrt.valid && hrt.t > chrt.t) { // found closer plane
+                            cHitObjCol = planes[cpl].color;
+                            hrt = chrt;
+                        } else if (!hrt.valid) { // haven't found anything at this point
+                            cHitObjCol = planes[cpl].color;
+                            hrt = chrt;
+                        }
                     }
                 }
             }
             tm_rEn = TIME_NOW;
             tm_hitTests[p] = TIME_DURATION(tm_rSt, tm_rEn);
 
-            if (hrt.valid) { // we got the closest sphere
+            if (hrt.valid) { // we got an object here
                 tm_rSt = TIME_NOW;
-                // hit a sphere, lets use it for the color calculation
                 glm::vec3 pxCol(0);
                 for (int lg = 0; lg < lightCount; lg++) { // loop each light
                     bool lightObstruct = false;
@@ -145,16 +179,26 @@ int main(int argc, char* argv[])
                         fqrt::tasks::hitTestResult hrt_l;
                         fqrt::tasks::traceIntersectSphere(hrt.pos, 
                             fqrt::tasks::buildDirRay(hrt.pos, lights[lg].pos),
-                            spheres[b].pos, spheres[b].r, &hrt_l);
+                            spheres[b], &hrt_l);
                         if (hrt_l.valid) { // we are obstructed if this hits
                             lightObstruct = true;
                             break;
                         }
                     }
+                    // for (int b = 0; b < planeCount; b++) {
+                    //     fqrt::tasks::hitTestResult hrt_l;
+                    //     fqrt::tasks::traceIntersectPlane(hrt.pos, 
+                    //         fqrt::tasks::buildDirRay(hrt.pos, lights[lg].pos),
+                    //         planes[b], &hrt_l);
+                    //     if (hrt_l.valid) { // we are obstructed if this hits
+                    //         lightObstruct = true;
+                    //         break;
+                    //     }
+                    // }
                     if (!lightObstruct) { // if not obstructed, incorporate this light
                         float intensity = fqrt::tasks::calcLightingAtPos(lights[lg].pos, 
                             hrt.pos, hrt.nor);
-                        pxCol = pxCol + intensity * lights[lg].color * spheres[sph].color;
+                        pxCol = pxCol + intensity * lights[lg].color * cHitObjCol;
                     }
                 }
                 img(x, y, 0) = (pxCol.r) * 255;

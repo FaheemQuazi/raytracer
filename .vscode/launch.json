@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/build/debug/raytracer",
             "args": [
-                "${workspaceFolder}/assets/basic.scene"
+                "${workspaceFolder}/assets/spheramid.scene"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build/debug/",
