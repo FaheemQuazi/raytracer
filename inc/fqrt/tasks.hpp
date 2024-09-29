@@ -71,6 +71,24 @@ namespace fqrt {
             return glm::max(glm::dot(n ,(l - p) / glm::length(l - p)),0.0f);
         }
     }
+    namespace math {
+        template<typename T>
+        T average(T* values, int len) {
+            T sum = 0;
+            for (int i = 0; i < len; i++) {
+                sum = sum + values[i];
+            }
+            return sum / len;
+        }
+        template<typename T>
+        T max(T* values, int len) {
+            T m = -INFINITY;
+            for (int i = 0; i < len; i++) {
+                if (values[i] > m) m = values[i];
+            }
+            return m;
+        }
+    }
 }
 
 #endif
