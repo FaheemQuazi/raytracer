@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <tira/graphics/camera.h>
+#include <tira/graphics/shapes/simplemesh.h>
 #include <glm/vec3.hpp>
 #include "fqrt/objects.hpp"
 
@@ -69,10 +70,34 @@ namespace fqrt {
             if (ndd == 0) return; // undefined (parallel)
             glm::vec3 v_cp = P.pos - p;
             float th = glm::dot(v_cp, P.norm) / ndd;
+            if (th <= 0) return; // behind/on camera
 
             out->pos = p + (th * d);
             out->nor = P.norm;
             out->t = th;
+            out->valid = true;
+        }
+
+        void traceIntersectTriangle(glm::vec3 p, glm::vec3 d, tira::triangle T, hitTestResult* out) {
+            out->valid = false;
+            
+            // make a quick plane to run initial hit-test
+            hitTestResult hrt_PLT;
+            fqrt::objects::plane PLT = {
+                .pos = T.v[0],
+                .norm = T.n
+            };
+            traceIntersectPlane(p, d, PLT, &hrt_PLT);
+            if (!hrt_PLT.valid) return;
+            // test if hit inside triangle
+            bool leftAB = glm::dot(glm::cross((T.v[1] - T.v[0]), (hrt_PLT.pos - T.v[0])), T.n) >= 0;
+            bool leftCB = glm::dot(glm::cross((T.v[2] - T.v[1]), (hrt_PLT.pos - T.v[1])), T.n) >= 0;
+            bool leftAC = glm::dot(glm::cross((T.v[0] - T.v[2]), (hrt_PLT.pos - T.v[2])), T.n) >= 0;
+            if (!(leftAB && leftCB && leftAC)) return;
+
+            out->pos = hrt_PLT.pos;
+            out->nor = T.n;
+            out->t = hrt_PLT.t;
             out->valid = true;
         }
 
@@ -84,24 +109,6 @@ namespace fqrt {
          */
         float calcLightingAtPos(glm::vec3 l, glm::vec3 p, glm::vec3 n) {
             return glm::max(glm::dot(n ,(l - p) / glm::length(l - p)),0.0f);
-        }
-    }
-    namespace math {
-        template<typename T>
-        T average(T* values, int len) {
-            T sum = 0;
-            for (int i = 0; i < len; i++) {
-                sum = sum + values[i];
-            }
-            return sum / len;
-        }
-        template<typename T>
-        T max(T* values, int len) {
-            T m = -INFINITY;
-            for (int i = 0; i < len; i++) {
-                if (values[i] > m) m = values[i];
-            }
-            return m;
         }
     }
 }

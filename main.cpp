@@ -1,10 +1,14 @@
 #include <iostream>
 #include <chrono>
+#include <string>
+#include <vector>
 #include "tira/parser.h"
 #include "tira/graphics/camera.h"
+#include "tira/graphics/shapes/simplemesh.h"
 #include "tira/image.h"
 #include "fqrt/objects.hpp"
 #include "fqrt/tasks.hpp"
+#include "fqrt/util.hpp"
 
 using namespace std::chrono;
 #define TIME_NOW high_resolution_clock::now()
@@ -14,6 +18,9 @@ using namespace std::chrono;
 #ifndef SCENE_FILE
 #define SCENE_FILE argv[1]
 #endif
+
+#define SURF_OFFSET_SPHERE -0.01f
+#define SURF_OFFSET_PLANE   0.01f
 
 int main(int argc, char* argv[])
 {
@@ -35,6 +42,7 @@ int main(int argc, char* argv[])
     fqrt::objects::sphere* spheres;
     fqrt::objects::plane* planes;
     fqrt::objects::light* lights;
+    tira::simplemesh* meshes;
 
     // output image
     float img_W = scene.get<float>("resolution", 0);
@@ -85,6 +93,20 @@ int main(int argc, char* argv[])
         printf("Warning: No planes in scene!\n");
     }
 
+    // meshes
+    int meshCount = scene.count("mesh");
+    if (meshCount > 0) {
+        // split the scene path string to get directory
+        std::vector<std::string> path = fqrt::files::SplitPath(SCENE_FILE);
+        path.pop_back(); // remove the file name
+        meshes = new tira::simplemesh[meshCount];
+        for (int i = 0; i < meshCount; i++) {
+            path.push_back(scene.get<std::string>("mesh", i, 0));
+            std::string meshPath = fqrt::files::JoinPath(path);
+            meshes[i].load(meshPath);
+        }
+    }
+
     // allocate lights
     int lightCount = scene.count("light");
     if (lightCount > 0) {
@@ -109,6 +131,7 @@ int main(int argc, char* argv[])
         << " - Render Image: " << img_W << " X " << img_H << std::endl\
         << " - Number of Spheres: " << sphereCount << std::endl \
         << " - Number of Planes: " << planeCount << std::endl \
+        << " - Number of Meshes: " << meshCount << std::endl \
         << " - Number of Lights: " << lightCount << std::endl;
 
     // Time tracking stuff
@@ -139,6 +162,23 @@ int main(int argc, char* argv[])
                 .valid = false
             };
             glm::vec3 cHitObjCol(0);
+
+            for (int cmsh = 0; cmsh < meshCount; cmsh++) { // loop each mesh
+                for (int mT = 0; mT < meshes[cmsh].count(); mT++) {
+                    fqrt::tasks::hitTestResult chrt;
+                    fqrt::tasks::traceIntersectTriangle(cam.position(), cR, meshes[cmsh][mT], &chrt);
+                    if (chrt.valid) {
+                        if (hrt.valid && hrt.t > chrt.t) { // found closer triangle
+                            cHitObjCol = meshes[cmsh][mT].n;
+                            hrt = chrt;
+                        } else if (!hrt.valid) { // havent found anything yet
+                            cHitObjCol = meshes[cmsh][mT].n;
+                            hrt = chrt;
+                        }
+                    }
+                }
+            }
+
             for (int csph = 0; csph < sphereCount; csph++) { // loop each sphere
                 fqrt::tasks::hitTestResult chrt;
                 fqrt::tasks::traceIntersectSphere(cam.position(), cR, spheres[csph], &chrt);
@@ -146,24 +186,23 @@ int main(int argc, char* argv[])
                     if (hrt.valid && hrt.t > chrt.t) { // found closer sphere
                         cHitObjCol = spheres[csph].color;
                         hrt = chrt;
-                    } else if (!hrt.valid) { // haven't found any sphere
+                    } else if (!hrt.valid) { // havent found anything yet
                         cHitObjCol = spheres[csph].color;
                         hrt = chrt;
                     }
                 }
             }
-            if (!hrt.valid) { // if we aren't valid already
-                for (int cpl = 0; cpl < planeCount; cpl++) { // loop each plane
-                    fqrt::tasks::hitTestResult chrt;
-                    fqrt::tasks::traceIntersectPlane(cam.position(), cR, planes[cpl], &chrt);
-                    if (chrt.valid) {
-                        if (hrt.valid && hrt.t > chrt.t) { // found closer plane
-                            cHitObjCol = planes[cpl].color;
-                            hrt = chrt;
-                        } else if (!hrt.valid) { // haven't found anything at this point
-                            cHitObjCol = planes[cpl].color;
-                            hrt = chrt;
-                        }
+
+            for (int cpl = 0; cpl < planeCount; cpl++) { // loop each plane
+                fqrt::tasks::hitTestResult chrt;
+                fqrt::tasks::traceIntersectPlane(cam.position(), cR, planes[cpl], &chrt);
+                if (chrt.valid) {
+                    if (hrt.valid && hrt.t > chrt.t) { // found closer plane
+                        cHitObjCol = planes[cpl].color;
+                        hrt = chrt;
+                    } else if (!hrt.valid) { // haven't found anything yet
+                        cHitObjCol = planes[cpl].color;
+                        hrt = chrt;
                     }
                 }
             }
@@ -177,24 +216,44 @@ int main(int argc, char* argv[])
                     bool lightObstruct = false;
                     for (int b = 0; b < sphereCount; b++) {
                         fqrt::tasks::hitTestResult hrt_l;
-                        fqrt::tasks::traceIntersectSphere(hrt.pos, 
-                            fqrt::tasks::buildDirRay(hrt.pos, lights[lg].pos),
+                        fqrt::tasks::traceIntersectSphere(hrt.pos + SURF_OFFSET_SPHERE*hrt.nor, // move up a hair off the surface
+                            fqrt::tasks::buildDirRay(hrt.pos + SURF_OFFSET_SPHERE*hrt.nor, lights[lg].pos),
                             spheres[b], &hrt_l);
                         if (hrt_l.valid) { // we are obstructed if this hits
                             lightObstruct = true;
                             break;
                         }
                     }
-                    // for (int b = 0; b < planeCount; b++) {
-                    //     fqrt::tasks::hitTestResult hrt_l;
-                    //     fqrt::tasks::traceIntersectPlane(hrt.pos, 
-                    //         fqrt::tasks::buildDirRay(hrt.pos, lights[lg].pos),
-                    //         planes[b], &hrt_l);
-                    //     if (hrt_l.valid) { // we are obstructed if this hits
-                    //         lightObstruct = true;
-                    //         break;
-                    //     }
-                    // }
+                    if (!lightObstruct && meshCount > 0) { // if not obstructed check meshes
+                        for (int b = 0; b < meshCount; b++) {
+                            fqrt::tasks::hitTestResult hrt_l;
+                            for (int mt = 0; mt < meshes[b].count(); mt++) {
+                                fqrt::tasks::traceIntersectTriangle(hrt.pos + SURF_OFFSET_PLANE*hrt.nor, // move up a hair off the surface
+                                    fqrt::tasks::buildDirRay(hrt.pos + SURF_OFFSET_PLANE*hrt.nor, lights[lg].pos),
+                                    meshes[b][mt], &hrt_l);
+                                if (hrt_l.valid) { // we are obstructed if this hits
+                                    lightObstruct = true;
+                                    break;
+                                }
+                            }
+                            if (hrt_l.valid) { // break out if any triangle in this mesh hits
+                                lightObstruct = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!lightObstruct && planeCount > 0) { // if not obstructed check planes
+                        for (int b = 0; b < planeCount; b++) {
+                            fqrt::tasks::hitTestResult hrt_l;
+                            fqrt::tasks::traceIntersectPlane(hrt.pos + SURF_OFFSET_PLANE*hrt.nor, // move up a hair off the surface
+                                fqrt::tasks::buildDirRay(hrt.pos + SURF_OFFSET_PLANE*hrt.nor, lights[lg].pos),
+                                planes[b], &hrt_l);
+                            if (hrt_l.valid) { // we are obstructed if this hits
+                                lightObstruct = true;
+                                break;
+                            }
+                        }
+                    }
                     if (!lightObstruct) { // if not obstructed, incorporate this light
                         float intensity = fqrt::tasks::calcLightingAtPos(lights[lg].pos, 
                             hrt.pos, hrt.nor);

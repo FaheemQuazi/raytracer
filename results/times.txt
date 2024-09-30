@@ -1,0 +1,21 @@
+------- Basic.scene Stats [s] -------
+           load scene: 0.00127769
+         render scene: 1.85265
+      avg depth check: 8.64969e-07
+  longest depth check: 3.6492e-05
+    avg light process: 8.63777e-07
+longest light process: 7.4432e-05
+   total program exec: 1.85421
+
+------- Spheramid.scene Stats [s] -------
+           load scene: 0.116681
+         render scene: 1261.11
+      avg depth check: 7.70828e-06
+  longest depth check: 0.000157297
+    avg light process: 0.00125323
+longest light process: 0.00245896
+   total program exec: 1261.23
+
+------- Mesh.scene Stats --------
+>3 hours for a single frame
+I stopped it prematurely.
