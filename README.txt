@@ -23,12 +23,12 @@ the below instructions just in case that's not desired:
 -----------
 How to run:
 -----------
-The executable requires the path to a `.scene` file. You can
-see examples of them in the `assets/` directory.
+The executable requires the path to a `.scene` file and a core count. 
+You can see examples of scenes in the `assets/` directory.
 
 Example:
-    `raytracer ./assets/basic.scene`
+    `raytracer ./assets/basic.scene 4`
 
 The program will print the output times and render the image
-in `out.bmp`.
+in `out.bmp` using 4 cores.
 
