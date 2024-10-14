@@ -32,6 +32,7 @@ int main(int argc, char* argv[])
         return 1;
     }
     std::cout << "Scene File: " << SCENE_FILE << "\n";
+    std::cout << "Thread Limit: " << MAX_THREADS << "\n";
 
     // timing functions
     high_resolution_clock::time_point tm_start = TIME_NOW;
@@ -130,15 +131,12 @@ int main(int argc, char* argv[])
         << " - Number of Meshes: " << sd.meshCount << std::endl \
         << " - Number of Lights: " << sd.lightCount << std::endl;
 
-    // Time tracking stuff
-    double* tm_hitTests = (double*)malloc(sizeof(double) * sd.dH * sd.dW);
-    double* tm_lightTests = (double*)malloc(sizeof(double) * sd.dH * sd.dW);
+    // Time tracking stuff    
+    fqrt::time::frameTimes_t *tm_pixelTimes = (fqrt::time::frameTimes_t*)malloc(sizeof(fqrt::time::frameTimes_t) * sd.dH * sd.dW);
 
     // Begin Render Pass
     std::cout << "begin render...";
     high_resolution_clock::time_point tm_renderBegin = TIME_NOW;
-    high_resolution_clock::time_point tm_rSt;
-    high_resolution_clock::time_point tm_rEn;
     int p = 0;
     for (int y = 0; y < sd.dH; y++) {
         for (int x = 0; x < sd.dW; x++) {
@@ -152,7 +150,7 @@ int main(int argc, char* argv[])
             float ipY = (y - (sd.dH / 2.0)) / sd.dH; /* [-0.5, 0.5]*/
 
             // Hit test
-            tm_rSt = TIME_NOW;
+            high_resolution_clock::time_point tm_rSt = TIME_NOW;
             glm::vec3 cR = sd.cam.ray(ipX, ipY);
             fqrt::tasks::hitTestResult hrt = {
                 .valid = false
@@ -202,8 +200,8 @@ int main(int argc, char* argv[])
                     }
                 }
             }
-            tm_rEn = TIME_NOW;
-            tm_hitTests[p] = TIME_DURATION(tm_rSt, tm_rEn);
+            high_resolution_clock::time_point tm_rEn = TIME_NOW;
+            tm_pixelTimes[p].hit = TIME_DURATION(tm_rSt, tm_rEn);
 
             if (hrt.valid) { // we got an object here
                 tm_rSt = TIME_NOW;
@@ -260,7 +258,7 @@ int main(int argc, char* argv[])
                 sd.img(x, y, 1) = (pxCol.g) * 255;
                 sd.img(x, y, 2) = (pxCol.b) * 255;
                 tm_rEn = TIME_NOW;
-                tm_lightTests[p] = TIME_DURATION(tm_rSt, tm_rEn);
+                tm_pixelTimes[p].light = TIME_DURATION(tm_rSt, tm_rEn);
             }
             // printf("P: %8d / %.0f @ (%04d, %04d) | H: %2.4f | L: %2.4f\r", p, sd.dW*sd.dH, x, y, tm_hitTests[p], tm_lightTests[p]);
             p++;
@@ -269,14 +267,17 @@ int main(int argc, char* argv[])
     high_resolution_clock::time_point tm_renderEnd = TIME_NOW;
     // save image
     sd.img.save("out.bmp");
+    // for stats
+    double *ht = fqrt::time::FTgetHits(tm_pixelTimes, sd.dW*sd.dH);
+    double *lt = fqrt::time::FTgetLights(tm_pixelTimes, sd.dW*sd.dH);
     std::cout << "\nRendered to out.bmp\n";
     std::cout << "\n------- Time Stats [s] -------" << std::endl \
         << "           load scene: " << TIME_DURATION(tm_start, tm_loaded) << std::endl \
         << "         render scene: " << TIME_DURATION(tm_renderBegin, tm_renderEnd) << std::endl \
-        << "      avg depth check: " << fqrt::math::average(tm_hitTests, sd.dW*sd.dH) << std::endl \
-        << "  longest depth check: " << fqrt::math::max(tm_hitTests, sd.dW*sd.dH) << std::endl \
-        << "    avg light process: " << fqrt::math::average(tm_lightTests, sd.dW*sd.dH) << std::endl \
-        << "longest light process: " << fqrt::math::max(tm_lightTests, sd.dW*sd.dH) << std::endl \
+        << "      avg depth check: " << fqrt::math::average(ht, sd.dW*sd.dH) << std::endl \
+        << "  longest depth check: " << fqrt::math::max(ht, sd.dW*sd.dH) << std::endl \
+        << "    avg light process: " << fqrt::math::average(lt, sd.dW*sd.dH) << std::endl \
+        << "longest light process: " << fqrt::math::max(lt, sd.dW*sd.dH) << std::endl \
         << "   total program exec: " << TIME_DURATION(tm_start, tm_renderEnd) << std::endl;
 
     return 0;

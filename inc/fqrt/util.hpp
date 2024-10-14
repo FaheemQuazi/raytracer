@@ -5,7 +5,31 @@
 #include <string>
 #include <vector>
 
+using namespace std::chrono;
+#define TIME_NOW high_resolution_clock::now()
+#define TIME_DURATION(s, f) duration_cast<duration<double>>((f) - (s)).count()
+
 namespace fqrt {
+    namespace time {
+        typedef struct frameTimes_tag {
+            double hit;
+            double light;
+        } frameTimes_t;
+        double* FTgetHits(frameTimes_t *ft, int len) {
+            double *r = (double*)malloc(sizeof(double) * len);
+            for (int i = 0; i < len; i++) {
+                r[i] = ft[i].hit;
+            }
+            return r;
+        }
+        double* FTgetLights(frameTimes_t *ft, int len) {
+            double *r = (double*)malloc(sizeof(double) * len);
+            for (int i = 0; i < len; i++) {
+                r[i] = ft[i].light;
+            }
+            return r;
+        }
+    }
     namespace math {
         template<typename T>
         T average(T* values, int len) {
