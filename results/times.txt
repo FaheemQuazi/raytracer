@@ -1,20 +1,38 @@
 ------- Basic.scene Stats [s] -------
-           load scene: 0.00127769
-         render scene: 1.85265
-      avg depth check: 8.64969e-07
-  longest depth check: 3.6492e-05
-    avg light process: 8.63777e-07
-longest light process: 7.4432e-05
-   total program exec: 1.85421
+(SINGLE THREAD) 
+           load scene: 0.00187726
+         render scene: 2.13071
+      avg depth check: 8.6782e-07
+  longest depth check: 0.00019024
+    avg light process: 1.13066e-06
+longest light process: 0.000196561
+   total program exec: 2.13271
+(MULTI THREAD: 4 Cores)
+           load scene: 0.0018792
+         render scene: 128.151
+      avg depth check: 1.38226e-06
+  longest depth check: 0.00720971
+    avg light process: 1.26767e-06
+longest light process: 0.000124071
+   total program exec: 128.153
 
 ------- Spheramid.scene Stats [s] -------
-           load scene: 0.116681
-         render scene: 1261.11
-      avg depth check: 7.70828e-06
-  longest depth check: 0.000157297
-    avg light process: 0.00125323
-longest light process: 0.00245896
-   total program exec: 1261.23
+(SINGLE CORE)
+           load scene: 0.127933
+         render scene: 1268.92
+      avg depth check: 7.83112e-06
+  longest depth check: 0.00022684
+    avg light process: 0.00126092
+longest light process: 0.0026289
+   total program exec: 1269.05
+(MULTI CORE: 4 Cores)
+           load scene: 0.116817
+         render scene: 524.691
+      avg depth check: 9.11649e-06
+  longest depth check: 0.00106022
+    avg light process: 0.00144084
+longest light process: 0.0440548
+   total program exec: 524.808
 
 ------- Mesh.scene Stats --------
 >3 hours for a single frame

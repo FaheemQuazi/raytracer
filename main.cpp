@@ -2,6 +2,7 @@
 #include <chrono>
 #include <string>
 #include <vector>
+#include <thread>
 #include "tira/parser.h"
 #include "tira/graphics/camera.h"
 #include "tira/graphics/shapes/simplemesh.h"
@@ -20,8 +21,8 @@ using namespace std::chrono;
 #endif
 
 // specify threadcount
-#ifndef MAX_THREADS
-#define MAX_THREADS atoi(argv[2])
+#ifndef THREAD_COUNT
+#define THREAD_COUNT atoi(argv[2])
 #endif
 
 void renderPixel(int p, int x, int y, fqrt::scene::sceneData_t *sd, fqrt::time::frameTimes_t *tm) {
@@ -155,7 +156,7 @@ int main(int argc, char* argv[])
         return 1;
     }
     std::cout << "Scene File: " << SCENE_FILE << "\n";
-    std::cout << "Thread Limit: " << MAX_THREADS << "\n";
+    std::cout << "Thread Limit: " << THREAD_COUNT << "\n";
 
     // timing functions
     high_resolution_clock::time_point tm_start = TIME_NOW;
@@ -261,10 +262,26 @@ int main(int argc, char* argv[])
     std::cout << "begin render...";
     high_resolution_clock::time_point tm_renderBegin = TIME_NOW;
     int p = 0;
-    for (int y = 0; y < sd.dH; y++) {
-        for (int x = 0; x < sd.dW; x++) {
-            renderPixel(p, x, y, &sd, &tm_pixelTimes[p]);
-            p++;
+    if (THREAD_COUNT > 1) {
+        std::thread th[THREAD_COUNT];    
+        for (int y = 0; y < sd.dH; y++) {
+            for (int x = 0; x < sd.dW; x++) {
+                if (p >= THREAD_COUNT) { // only join if we've passed the array size
+                    th[p%THREAD_COUNT].join();
+                }                
+                th[p%THREAD_COUNT] = std::thread(renderPixel, p, x, y, &sd, &tm_pixelTimes[p]);
+                p++;
+            }
+        }
+        for (int t = 0; t < THREAD_COUNT; t++) {
+            th[t].join();
+        }
+    } else {
+        for (int y = 0; y < sd.dH; y++) {
+            for (int x = 0; x < sd.dW; x++) {
+                renderPixel(p, x, y, &sd, &tm_pixelTimes[p]);
+                p++;
+            }
         }
     }
     high_resolution_clock::time_point tm_renderEnd = TIME_NOW;
@@ -274,7 +291,7 @@ int main(int argc, char* argv[])
     double *ht = fqrt::time::FTgetHits(tm_pixelTimes, sd.dW*sd.dH);
     double *lt = fqrt::time::FTgetLights(tm_pixelTimes, sd.dW*sd.dH);
     std::cout << "\nRendered to out.bmp\n";
-    std::cout << "\n------- Time Stats [s] -------" << std::endl \
+    std::cout << "\n--------- Time Stats [s] ---------" << std::endl \
         << "           load scene: " << TIME_DURATION(tm_start, tm_loaded) << std::endl \
         << "         render scene: " << TIME_DURATION(tm_renderBegin, tm_renderEnd) << std::endl \
         << "      avg depth check: " << fqrt::math::average(ht, sd.dW*sd.dH) << std::endl \
