@@ -24,6 +24,129 @@ using namespace std::chrono;
 #define MAX_THREADS atoi(argv[2])
 #endif
 
+void renderPixel(int p, int x, int y, fqrt::scene::sceneData_t *sd, fqrt::time::frameTimes_t *tm) {
+    // set background color
+    sd->img(x, y, 0) = sd->cam_bg.r;
+    sd->img(x, y, 1) = sd->cam_bg.g;
+    sd->img(x, y, 2) = sd->cam_bg.b;
+
+    // Image Plane Coordinates
+    float ipX = (x - (sd->dW / 2.0)) / sd->dW; /* [-0.5, 0.5]*/
+    float ipY = (y - (sd->dH / 2.0)) / sd->dH; /* [-0.5, 0.5]*/
+
+    // Hit test
+    high_resolution_clock::time_point tm_rSt = TIME_NOW;
+    glm::vec3 cR = sd->cam.ray(ipX, ipY);
+    fqrt::tasks::hitTestResult hrt = {
+        .valid = false
+    };
+    glm::vec3 cHitObjCol(0);
+
+    for (int cmsh = 0; cmsh < sd->meshCount; cmsh++) { // loop each mesh
+        for (int mT = 0; mT < sd->meshes[cmsh].count(); mT++) {
+            fqrt::tasks::hitTestResult chrt;
+            fqrt::tasks::traceIntersectTriangle(sd->cam.position(), cR, sd->meshes[cmsh][mT], &chrt);
+            if (chrt.valid) {
+                if (hrt.valid && hrt.t > chrt.t) { // found closer triangle
+                    cHitObjCol = sd->meshes[cmsh][mT].n;
+                    hrt = chrt;
+                } else if (!hrt.valid) { // havent found anything yet
+                    cHitObjCol = sd->meshes[cmsh][mT].n;
+                    hrt = chrt;
+                }
+            }
+        }
+    }
+
+    for (int csph = 0; csph < sd->sphereCount; csph++) { // loop each sphere
+        fqrt::tasks::hitTestResult chrt;
+        fqrt::tasks::traceIntersectSphere(sd->cam.position(), cR, sd->spheres[csph], &chrt);
+        if (chrt.valid) {
+            if (hrt.valid && hrt.t > chrt.t) { // found closer sphere
+                cHitObjCol = sd->spheres[csph].color;
+                hrt = chrt;
+            } else if (!hrt.valid) { // havent found anything yet
+                cHitObjCol = sd->spheres[csph].color;
+                hrt = chrt;
+            }
+        }
+    }
+
+    for (int cpl = 0; cpl < sd->planeCount; cpl++) { // loop each plane
+        fqrt::tasks::hitTestResult chrt;
+        fqrt::tasks::traceIntersectPlane(sd->cam.position(), cR, sd->planes[cpl], &chrt);
+        if (chrt.valid) {
+            if (hrt.valid && hrt.t > chrt.t) { // found closer plane
+                cHitObjCol = sd->planes[cpl].color;
+                hrt = chrt;
+            } else if (!hrt.valid) { // haven't found anything yet
+                cHitObjCol = sd->planes[cpl].color;
+                hrt = chrt;
+            }
+        }
+    }
+    high_resolution_clock::time_point tm_rEn = TIME_NOW;
+    tm->hit = TIME_DURATION(tm_rSt, tm_rEn);
+
+    if (hrt.valid) { // we got an object here
+        tm_rSt = TIME_NOW;
+        glm::vec3 pxCol(0);
+        for (int lg = 0; lg < sd->lightCount; lg++) { // loop each light
+            bool lightObstruct = false;
+            for (int b = 0; b < sd->sphereCount; b++) {
+                fqrt::tasks::hitTestResult hrt_l;
+                fqrt::tasks::traceIntersectSphere(hrt.pos + SURF_OFFSET_SPHERE*hrt.nor, // move up a hair off the surface
+                    fqrt::tasks::buildDirRay(hrt.pos + SURF_OFFSET_SPHERE*hrt.nor, sd->lights[lg].pos),
+                    sd->spheres[b], &hrt_l);
+                if (hrt_l.valid) { // we are obstructed if this hits
+                    lightObstruct = true;
+                    break;
+                }
+            }
+            if (!lightObstruct && sd->meshCount > 0) { // if not obstructed check meshes
+                for (int b = 0; b < sd->meshCount; b++) {
+                    fqrt::tasks::hitTestResult hrt_l;
+                    for (int mt = 0; mt < sd->meshes[b].count(); mt++) {
+                        fqrt::tasks::traceIntersectTriangle(hrt.pos + SURF_OFFSET_PLANE*hrt.nor, // move up a hair off the surface
+                            fqrt::tasks::buildDirRay(hrt.pos + SURF_OFFSET_PLANE*hrt.nor, sd->lights[lg].pos),
+                            sd->meshes[b][mt], &hrt_l);
+                        if (hrt_l.valid) { // we are obstructed if this hits
+                            lightObstruct = true;
+                            break;
+                        }
+                    }
+                    if (hrt_l.valid) { // break out if any triangle in this mesh hits
+                        lightObstruct = true;
+                        break;
+                    }
+                }
+            }
+            if (!lightObstruct && sd->planeCount > 0) { // if not obstructed check planes
+                for (int b = 0; b < sd->planeCount; b++) {
+                    fqrt::tasks::hitTestResult hrt_l;
+                    fqrt::tasks::traceIntersectPlane(hrt.pos + SURF_OFFSET_PLANE*hrt.nor, // move up a hair off the surface
+                        fqrt::tasks::buildDirRay(hrt.pos + SURF_OFFSET_PLANE*hrt.nor, sd->lights[lg].pos),
+                        sd->planes[b], &hrt_l);
+                    if (hrt_l.valid) { // we are obstructed if this hits
+                        lightObstruct = true;
+                        break;
+                    }
+                }
+            }
+            if (!lightObstruct) { // if not obstructed, incorporate this light
+                float intensity = fqrt::tasks::calcLightingAtPos(sd->lights[lg].pos, 
+                    hrt.pos, hrt.nor);
+                pxCol = pxCol + intensity * sd->lights[lg].color * cHitObjCol;
+            }
+        }
+        sd->img(x, y, 0) = (pxCol.r) * 255;
+        sd->img(x, y, 1) = (pxCol.g) * 255;
+        sd->img(x, y, 2) = (pxCol.b) * 255;
+        tm_rEn = TIME_NOW;
+        tm->light = TIME_DURATION(tm_rSt, tm_rEn);
+    }
+}
+
 int main(int argc, char* argv[])
 {
     std::cout << "Hello FQRT\n";
@@ -140,127 +263,7 @@ int main(int argc, char* argv[])
     int p = 0;
     for (int y = 0; y < sd.dH; y++) {
         for (int x = 0; x < sd.dW; x++) {
-            // set background color
-            sd.img(x, y, 0) = sd.cam_bg.r;
-            sd.img(x, y, 1) = sd.cam_bg.g;
-            sd.img(x, y, 2) = sd.cam_bg.b;
-
-            // Image Plane Coordinates
-            float ipX = (x - (sd.dW / 2.0)) / sd.dW; /* [-0.5, 0.5]*/
-            float ipY = (y - (sd.dH / 2.0)) / sd.dH; /* [-0.5, 0.5]*/
-
-            // Hit test
-            high_resolution_clock::time_point tm_rSt = TIME_NOW;
-            glm::vec3 cR = sd.cam.ray(ipX, ipY);
-            fqrt::tasks::hitTestResult hrt = {
-                .valid = false
-            };
-            glm::vec3 cHitObjCol(0);
-
-            for (int cmsh = 0; cmsh < sd.meshCount; cmsh++) { // loop each mesh
-                for (int mT = 0; mT < sd.meshes[cmsh].count(); mT++) {
-                    fqrt::tasks::hitTestResult chrt;
-                    fqrt::tasks::traceIntersectTriangle(sd.cam.position(), cR, sd.meshes[cmsh][mT], &chrt);
-                    if (chrt.valid) {
-                        if (hrt.valid && hrt.t > chrt.t) { // found closer triangle
-                            cHitObjCol = sd.meshes[cmsh][mT].n;
-                            hrt = chrt;
-                        } else if (!hrt.valid) { // havent found anything yet
-                            cHitObjCol = sd.meshes[cmsh][mT].n;
-                            hrt = chrt;
-                        }
-                    }
-                }
-            }
-
-            for (int csph = 0; csph < sd.sphereCount; csph++) { // loop each sphere
-                fqrt::tasks::hitTestResult chrt;
-                fqrt::tasks::traceIntersectSphere(sd.cam.position(), cR, sd.spheres[csph], &chrt);
-                if (chrt.valid) {
-                    if (hrt.valid && hrt.t > chrt.t) { // found closer sphere
-                        cHitObjCol = sd.spheres[csph].color;
-                        hrt = chrt;
-                    } else if (!hrt.valid) { // havent found anything yet
-                        cHitObjCol = sd.spheres[csph].color;
-                        hrt = chrt;
-                    }
-                }
-            }
-
-            for (int cpl = 0; cpl < sd.planeCount; cpl++) { // loop each plane
-                fqrt::tasks::hitTestResult chrt;
-                fqrt::tasks::traceIntersectPlane(sd.cam.position(), cR, sd.planes[cpl], &chrt);
-                if (chrt.valid) {
-                    if (hrt.valid && hrt.t > chrt.t) { // found closer plane
-                        cHitObjCol = sd.planes[cpl].color;
-                        hrt = chrt;
-                    } else if (!hrt.valid) { // haven't found anything yet
-                        cHitObjCol = sd.planes[cpl].color;
-                        hrt = chrt;
-                    }
-                }
-            }
-            high_resolution_clock::time_point tm_rEn = TIME_NOW;
-            tm_pixelTimes[p].hit = TIME_DURATION(tm_rSt, tm_rEn);
-
-            if (hrt.valid) { // we got an object here
-                tm_rSt = TIME_NOW;
-                glm::vec3 pxCol(0);
-                for (int lg = 0; lg < sd.lightCount; lg++) { // loop each light
-                    bool lightObstruct = false;
-                    for (int b = 0; b < sd.sphereCount; b++) {
-                        fqrt::tasks::hitTestResult hrt_l;
-                        fqrt::tasks::traceIntersectSphere(hrt.pos + SURF_OFFSET_SPHERE*hrt.nor, // move up a hair off the surface
-                            fqrt::tasks::buildDirRay(hrt.pos + SURF_OFFSET_SPHERE*hrt.nor, sd.lights[lg].pos),
-                            sd.spheres[b], &hrt_l);
-                        if (hrt_l.valid) { // we are obstructed if this hits
-                            lightObstruct = true;
-                            break;
-                        }
-                    }
-                    if (!lightObstruct && sd.meshCount > 0) { // if not obstructed check meshes
-                        for (int b = 0; b < sd.meshCount; b++) {
-                            fqrt::tasks::hitTestResult hrt_l;
-                            for (int mt = 0; mt < sd.meshes[b].count(); mt++) {
-                                fqrt::tasks::traceIntersectTriangle(hrt.pos + SURF_OFFSET_PLANE*hrt.nor, // move up a hair off the surface
-                                    fqrt::tasks::buildDirRay(hrt.pos + SURF_OFFSET_PLANE*hrt.nor, sd.lights[lg].pos),
-                                    sd.meshes[b][mt], &hrt_l);
-                                if (hrt_l.valid) { // we are obstructed if this hits
-                                    lightObstruct = true;
-                                    break;
-                                }
-                            }
-                            if (hrt_l.valid) { // break out if any triangle in this mesh hits
-                                lightObstruct = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (!lightObstruct && sd.planeCount > 0) { // if not obstructed check planes
-                        for (int b = 0; b < sd.planeCount; b++) {
-                            fqrt::tasks::hitTestResult hrt_l;
-                            fqrt::tasks::traceIntersectPlane(hrt.pos + SURF_OFFSET_PLANE*hrt.nor, // move up a hair off the surface
-                                fqrt::tasks::buildDirRay(hrt.pos + SURF_OFFSET_PLANE*hrt.nor, sd.lights[lg].pos),
-                                sd.planes[b], &hrt_l);
-                            if (hrt_l.valid) { // we are obstructed if this hits
-                                lightObstruct = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (!lightObstruct) { // if not obstructed, incorporate this light
-                        float intensity = fqrt::tasks::calcLightingAtPos(sd.lights[lg].pos, 
-                            hrt.pos, hrt.nor);
-                        pxCol = pxCol + intensity * sd.lights[lg].color * cHitObjCol;
-                    }
-                }
-                sd.img(x, y, 0) = (pxCol.r) * 255;
-                sd.img(x, y, 1) = (pxCol.g) * 255;
-                sd.img(x, y, 2) = (pxCol.b) * 255;
-                tm_rEn = TIME_NOW;
-                tm_pixelTimes[p].light = TIME_DURATION(tm_rSt, tm_rEn);
-            }
-            // printf("P: %8d / %.0f @ (%04d, %04d) | H: %2.4f | L: %2.4f\r", p, sd.dW*sd.dH, x, y, tm_hitTests[p], tm_lightTests[p]);
+            renderPixel(p, x, y, &sd, &tm_pixelTimes[p]);
             p++;
         }
     }
