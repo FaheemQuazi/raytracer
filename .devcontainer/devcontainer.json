@@ -9,7 +9,13 @@
 	],
     "features": {
         "ghcr.io/msclock/features/vcpkg": true,
-        "ghcr.io/devcontainers/features/nvidia-cuda": true
+        "ghcr.io/devcontainers/features/nvidia-cuda": {
+            "installToolkit": true,
+            "cudaVersion": "12.5"
+        }
+    },
+    "hostRequirements": {
+        "gpu": "optional"
     },
     "customizations": {
         "vscode": {
@@ -17,7 +23,8 @@
                 "ms-vscode.cpptools", // C++
                 "ms-vscode.cmake-tools", // CMake
                 "ms-vscode.cpptools-extension-pack",
-                "twxs.cmake"
+                "twxs.cmake",
+                "nvidia.nsight-vscode-edition"
             ]
         }
     }

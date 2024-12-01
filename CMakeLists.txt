@@ -1,7 +1,12 @@
 cmake_minimum_required(VERSION 3.25)
-
-project(raytracer LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CUDA_ARCHITECTURES OFF)
+set(CMAKE_CUDA_COMPILER "/usr/local/cuda/bin/nvcc")
+set(CUDA_TOOLKIT_ROOT_DIR "/usr/local/cuda")
+set(CUDA_BIN_PATH "/usr/local/cuda")
+set(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
+
+project(raytracer LANGUAGES CUDA CXX)
 
 # VCPKG Deps
 find_package(glm CONFIG REQUIRED)
@@ -18,6 +23,7 @@ target_sources(TIRA PUBLIC
 )
 
 # Configure Executable
-add_executable(raytracer main.cpp)
+add_executable(raytracer main.cpp rt.cu)
 target_include_directories(raytracer PUBLIC ${CMAKE_SOURCE_DIR}/inc)
 target_link_libraries(raytracer PRIVATE glm::glm TIRA X11)
+target_link_directories(raytracer PUBLIC /usr/local/cuda/lib64)
