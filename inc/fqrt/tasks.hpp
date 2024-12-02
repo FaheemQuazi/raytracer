@@ -2,8 +2,6 @@
 #define _FQRT_TASKS_HPP_
 
 #include <stdint.h>
-#include <tira/graphics/camera.h>
-#include <tira/graphics/shapes/simplemesh.h>
 #include <glm/vec3.hpp>
 #include "fqrt/objects.hpp"
 

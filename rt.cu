@@ -1,10 +1,24 @@
-#include <stdio.h>
-#include "rt.cuh"
+#include <iostream>
+#include <chrono>
+#include <string>
+#include <vector>
+#include <thread>
 
 __global__ void helloCUDA()
 {
     printf("Hello, CUDA!\n");
 }
+
+void runRT() {
+
+}
+
+bool cuda_avail() {
+    int devCount;
+    cudaGetDeviceCount(&devCount);
+    return devCount > 0;
+}
+
 
 void cuda_hello()
 {

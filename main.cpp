@@ -8,6 +8,7 @@
 #include "tira/graphics/shapes/simplemesh.h"
 #include "tira/image.h"
 #include "fqrt/objects.hpp"
+#include "fqrt/scene.hpp"
 #include "fqrt/tasks.hpp"
 #include "fqrt/util.hpp"
 
