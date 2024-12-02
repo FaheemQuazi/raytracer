@@ -5,7 +5,7 @@
 	"dockerFile": "Dockerfile",
 	"runArgs": [
         "--gpus", "all",
-        "--cpus", "4"
+        "--cpus", "8"
 	],
     "features": {
         "ghcr.io/msclock/features/vcpkg": true,

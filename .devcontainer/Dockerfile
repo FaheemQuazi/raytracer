@@ -14,5 +14,5 @@ ARG REINSTALL_CMAKE_VERSION_FROM_SOURCE="none"
 # RUN su vscode -c "${VCPKG_ROOT}/vcpkg install <your-port-name-here>"
 
 # Install additional packages for graphics
-RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-    && apt-get -y install --no-install-recommends libx11-dev
+RUN apt update && export DEBIAN_FRONTEND=noninteractive \
+    && apt -y install --no-install-recommends libx11-dev libpng-dev libjpeg-dev
