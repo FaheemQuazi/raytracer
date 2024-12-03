@@ -1,3 +1,20 @@
+#ifndef CUDA_CALLABLE
+
+//define the CUDA_CALLABLE macro (will prefix all members)
+#ifdef __CUDACC__
+#define CUDA_CALLABLE __host__ __device__ inline
+#else
+#define CUDA_CALLABLE
+#endif
+
+#ifdef __CUDACC__
+#define CUDA_UNCALLABLE __host__ inline
+#else
+#define CUDA_UNCALLABLE
+#endif
+
+#endif
+
 #ifndef _FQRT_TASKS_HPP_
 #define _FQRT_TASKS_HPP_
 
@@ -18,7 +35,7 @@ namespace fqrt {
          *   a: start point
          *   b: end point
          */
-        glm::vec3 buildDirRay(glm::vec3 a, glm::vec3 b) {
+        CUDA_CALLABLE glm::vec3 buildDirRay(glm::vec3 a, glm::vec3 b) {
             return glm::normalize(b - a);
         }
         /**
@@ -29,7 +46,7 @@ namespace fqrt {
          *   r: sphere radius
          *   out: hit result data
          */
-        void traceIntersectSphere(glm::vec3 p, glm::vec3 d, glm::vec3 s, float r, hitTestResult* out) {
+        CUDA_CALLABLE void traceIntersectSphere(glm::vec3 p, glm::vec3 d, glm::vec3 s, float r, hitTestResult* out) {
             out->valid = false;
 
             glm::vec3 v_cs = s - p; // vec from pos to sphere
@@ -57,11 +74,11 @@ namespace fqrt {
          *   S: sphere object
          *   out: hit result data
          */
-        void traceIntersectSphere(glm::vec3 p, glm::vec3 d, fqrt::objects::sphere S, hitTestResult* out) {
+        CUDA_CALLABLE void traceIntersectSphere(glm::vec3 p, glm::vec3 d, fqrt::objects::sphere S, hitTestResult* out) {
             traceIntersectSphere(p, d, S.pos, S.r, out);
         }
         
-        void traceIntersectPlane(glm::vec3 p, glm::vec3 d, fqrt::objects::plane P, hitTestResult* out) {
+        CUDA_CALLABLE void traceIntersectPlane(glm::vec3 p, glm::vec3 d, fqrt::objects::plane P, hitTestResult* out) {
             out->valid = false;
 
             float ndd = glm::dot(P.norm, d);
@@ -76,7 +93,7 @@ namespace fqrt {
             out->valid = true;
         }
 
-        void traceIntersectTriangle(glm::vec3 p, glm::vec3 d, tira::triangle T, hitTestResult* out) {
+        CUDA_CALLABLE void traceIntersectTriangle(glm::vec3 p, glm::vec3 d, tira::triangle T, hitTestResult* out) {
             out->valid = false;
             
             // make a quick plane to run initial hit-test
@@ -105,7 +122,7 @@ namespace fqrt {
          *   p: object position
          *   n: object normal
          */
-        float calcLightingAtPos(glm::vec3 l, glm::vec3 p, glm::vec3 n) {
+        CUDA_CALLABLE float calcLightingAtPos(glm::vec3 l, glm::vec3 p, glm::vec3 n) {
             return glm::max(glm::dot(n ,(l - p) / glm::length(l - p)),0.0f);
         }
     }

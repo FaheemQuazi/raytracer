@@ -9,8 +9,6 @@
 #include "tira/image.h"
 #include "fqrt/objects.hpp"
 #include "fqrt/scene.hpp"
-#include "fqrt/tasks.hpp"
-#include "fqrt/util.hpp"
 #include "rt.cuh"
 
 using namespace std::chrono;
@@ -118,7 +116,36 @@ int main(int argc, char** argv) {
     }
     
     std::cout << "Start Render...\n";
+    high_resolution_clock::time_point tm_renderBegin = TIME_NOW;
     cuda_hello();
+
+    // pass in gpu friendly scene
+    fqrt::scene::sceneDataGpu_t sdg;
+    sdg.cam = sd.cam;
+    sdg.cam_bg = sd.cam_bg;
+    sdg.dW = sd.dW;
+    sdg.dH = sd.dH;
+    sdg.dC = sd.dC;
+    sdg.sphereCount = sd.sphereCount;
+    sdg.spheres = sd.spheres;
+    sdg.planeCount = sd.planeCount;
+    sdg.planes = sd.planes;
+    sdg.lightCount = sd.lightCount;
+    sdg.lights = sd.lights;
+    sdg.img = (uint8_t*)malloc(sizeof(uint8_t) * sd.dW * sd.dH * sd.dC);
+
+    runRT(&sdg);
+
+    high_resolution_clock::time_point tm_renderEnd = TIME_NOW;
+    std::cout << "Done Render!\n";
+
+    tira::image out(sdg.img, sd.dW, sd.dH, sd.dC);
+    out.save("out.bmp");
+
+    std::cout << "\nRendered to out.bmp\n";
+    std::cout << "\n--------- Time Stats [s] ---------" << std::endl \
+        << "           load scene: " << TIME_DURATION(tm_start, tm_loaded) << std::endl \
+        << "         render scene: " << TIME_DURATION(tm_renderBegin, tm_renderEnd) << std::endl;
 
     return 0;
 }

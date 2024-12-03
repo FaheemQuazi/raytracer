@@ -37,3 +37,7 @@ longest light process: 0.0440548
 ------- Mesh.scene Stats --------
 >3 hours for a single frame
 I stopped it prematurely.
+
+--------- Spheramid ON GPU Stats [s] ---------
+           load scene: 0.116281
+         render scene: 7.51479

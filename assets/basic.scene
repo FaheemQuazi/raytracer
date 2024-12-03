@@ -27,4 +27,4 @@ light                -999      0     0     0.3   0.3   0.3
 light                 999      0     0     0.3   0.3   0.3
 
 # background color    r       g       b
-background            0.0     0.0     0.0
+background            0.5     0.5     0.0
